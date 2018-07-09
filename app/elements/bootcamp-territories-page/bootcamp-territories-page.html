@@ -1,0 +1,581 @@
+<!-- Iron -->
+<link rel="import" href="../../bower_components/iron-ajax/iron-ajax.html">
+<link rel="import" href="../../bower_components/iron-icon/iron-icon.html">
+<link rel="import" href="../../bower_components/iron-icons/editor-icons.html">
+<link rel="import" href="../../bower_components/iron-icons/iron-icons.html">
+<link rel="import" href="../../bower_components/iron-list/iron-list.html">
+
+<!-- Paper -->
+<link rel='import' href='../../bower_components/paper-button/paper-button.html'>
+<link rel='import' href='../../bower_components/paper-dialog/paper-dialog.html'>
+<link rel='import' href='../../bower_components/paper-toast/paper-toast.html'>
+
+<dom-module id='bootcamp-territories-page'>
+  <style>
+    [draggable] {
+      -moz-user-select: none;
+      -khtml-user-select: none;
+      -webkit-user-select: none;
+      user-select: none;
+      /* Required to make elements draggable in old WebKit */
+      -khtml-user-drag: element;
+      -webkit-user-drag: element;
+    }
+
+    paper-button[dialog-confirm] {
+      background-color: #3b8183;
+      color: white;
+    }
+
+    paper-button[dialog-dismiss] {
+      color: #ffa500;
+    }
+
+    iron-list {
+      background-color: 424b4b;
+      padding-bottom: 16px;
+    }
+    .territory {
+      @apply(--layout-horizontal);
+      margin: 16px 16px 0 16px;
+      padding: 20px;
+      border-radius: 8px;
+      background-color: #212121;
+      border: 1px solid #424b4b;
+      cursor: move;
+    }
+    .territory.dragging {
+      border: 1px solid #ffffff;
+    }
+    .territory.dragOver {
+      border: 1px solid #ffa500;
+    }
+    .territory.dragOver:after {
+      position: absolute;
+      left: 20px;
+      top: calc(50% + 10px);
+      height: 1px;
+      content: "";
+      width: calc(100% - 40px);
+      display: block;
+      border: none;
+      border-top: 1px dotted #ffa500;
+    }
+    .pad {
+      padding: 0 16px;
+      @apply(--layout-flex);
+      @apply(--layout-vertical);
+    }
+    .primary {
+      font-size: 16px;
+      font-weight: bold;
+    }
+    .secondary {
+      font-size: 14px;
+    }
+    .dim {
+      color: gray;
+    }
+    .edit-button span {
+      font-size: 9px;
+      cursor: default;
+    }
+    .delete-button span {
+      font-size: 9px;
+      cursor: default;
+    }
+
+    #dialogEdit {
+      min-width: 275px;
+      min-height: 450px;
+    }
+
+    #dialogSave {
+      min-width: 275px;
+      min-height: 450px;
+    }
+
+    .toolbar-button {
+      margin-right: 8px;
+    }
+
+    .toolbar-button iron-icon {
+      margin-right: 8px;
+    }
+
+    .toolbar-button span {
+      font-size: 9px;
+    }
+
+    #buttonNew iron-icon {
+      color: #ff4081;
+    }
+
+    #buttonReload iron-icon {
+      color: #3b8183;
+    }
+
+    #buttonSave iron-icon {
+      color: #ffa500;
+    }
+
+    #buttonExport iron-icon {
+      color: #00ffa5;
+    }
+  </style>
+
+  <template>
+
+    <!-- toolbar -->
+    <span id='toolbar'>
+      <paper-button class='toolbar-button' id='buttonReload' raised>
+        <iron-icon icon='icons:refresh'></iron-icon><span>Reload</span>
+      </paper-button>
+      <paper-button class='toolbar-button' id='buttonNew' raised>
+        <iron-icon icon='icons:add'></iron-icon><span>New</span>
+      </paper-button>
+      <paper-button class='toolbar-button' id='buttonSave' raised>
+        <iron-icon icon='icons:save'></iron-icon><span>Save</span>
+      </paper-button>
+      <paper-button class='toolbar-button' id='buttonExport' raised>
+        <iron-icon icon='icons:cloud-download'></iron-icon><span>Export</span>
+      </paper-button>
+    </span>
+
+    <!-- main page -->
+    <iron-ajax id="getTerritoriesAjax" url="https://bad-unicorn-service-test.appspot.com/territories" last-response="{{territories}}" on-response="onResponse" auto></iron-ajax>
+    <iron-list id="listguy" items="[[territories]]" as="item">
+      <template>
+        <div>
+          <div class="territory" territoryId$=[[item.id]] draggable>
+            <iron-icon icon="icons:reorder"></iron-icon>
+            <div class="pad">
+              <div class="primary">[[item.name]]</div>
+              <div class="secondary">[[item.id]]</div>
+              <div class="secondary dim">[[item.levels]]</div>
+            </div>
+            <paper-button class="edit-button" territory$=[[item]] raised>
+              <iron-icon icon="editor:mode-edit"></iron-icon><span>Edit</span>
+            </paper-button>
+            <paper-button class="delete-button" territoryId$=[[item.id]] raised>
+              <iron-icon icon="icons:delete"></iron-icon><span>Delete</span>
+            </paper-button>
+          </div>
+        </div>
+      </template>
+    </iron-list>
+
+    <!-- dialogs -->
+    <paper-dialog id='dialogEdit' entry-animation="scale-up-animation" exit-animation="fade-out-animation" with-backdrop>
+      <h2>Edit Territory: <span>[[selectedTerritory.name]]</span></h2>
+      <div><paper-input label='id' value={{selectedTerritory.id}} always-float-label=true></paper-input></div>
+      <div><paper-input label='name' value={{selectedTerritory.name}} always-float-label=true></paper-input></div>
+      <div><paper-input label='sequence' value={{selectedTerritory.sequence}} always-float-label=true></paper-input></div>
+      <div><paper-input label='levels' value={{levelsAsString}} always-float-label=true></paper-input></div>
+      <div class='buttons'>
+        <paper-button dialog-dismiss raised autofocus>Cancel</paper-button>
+        <paper-button dialog-confirm raised>Ok</paper-button>
+      </div>
+    </paper-dialog>
+
+    <paper-dialog id='dialogReload' entry-animation='scale-up-animation' exit-animation='fade-out-animation' with-backdrop>
+      <h2>Reload Territories</h2>
+      <p>This will erase your changes. Are you sure?</p>
+      <div class='buttons'>
+        <paper-button dialog-dismiss raised autofocus>Cancel</paper-button>
+        <paper-button dialog-confirm raised>Reload</paper-button>
+      </div>
+    </paper-dialog>
+
+    <paper-dialog id='dialogSave' entry-animation="scale-up-animation" exit-animation="fade-out-animation" with-backdrop>
+      <h2>Save All Territories</h2>
+      <p>This will publish your changes to the server. Are you sure you want to save all the territories?</p>
+      <div class='buttons'>
+        <paper-button dialog-dismiss raised autofocus>Cancel</paper-button>
+        <paper-button dialog-confirm raised>Save</paper-button>
+      </div>
+    </paper-dialog>
+
+    <paper-dialog id='dialogExport' entry-animation='scale-up-animation' exit-animation='fade-out-animation' with-backdrop>
+      <h2>Export All Territories</h2>
+      <pre>[[exportContent]]</pre>
+      <div class='buttons'>
+        <paper-button dialog-confirm raised>Done</paper-button>
+      </div>
+    </paper-dialog>
+
+    <!-- toasts -->
+    <paper-toast id='saveSuccessToast'>Territories saved successfully</paper-toast>
+    <paper-toast id='saveFailureToast'>Failed to save one or more territories. Please try again.</paper-toast>
+  </template>
+</dom-module>
+
+<script>
+  var polymerElement;
+  (function() {
+    Polymer({
+      is: 'bootcamp-territories-page',
+
+      properties: {
+        territories: {
+          type: Array,
+          notify: true
+        },
+
+        selectedIndex: {
+          type: Number,
+          value: -1,
+          notify: true
+        },
+
+        selectedTerritory: {
+          type: Object,
+          notify: true
+        },
+
+        selectedTerritoryString: {
+          type: String,
+          computed: 'stringifyTerritory(selectedTerritory)',
+          notify: true
+        }
+      },
+
+      ready: function() {
+        polymerElement = this;
+
+        // Toolbar
+        this.$.buttonReload.onclick = function() { polymerElement.$.dialogReload.open(); };
+        this.$.buttonNew.onclick = function() { polymerElement.newTerritory(); };
+        this.$.buttonSave.onclick = function() { polymerElement.$.dialogSave.open(); };
+        this.$.buttonExport.onclick = function() { polymerElement.$.dialogExport.open(); };
+
+
+        // Dialogs
+
+        // Reload
+        this.$.dialogReload.addEventListener('iron-overlay-closed', function(e) {
+          if(e.detail.confirmed === true) {
+            polymerElement.$.getTerritoriesAjax.generateRequest();
+          }
+        });
+
+        // Edit
+        this.$.dialogEdit.addEventListener('iron-overlay-opened', function() {
+          polymerElement.levelsAsString = JSON.stringify(polymerElement.selectedTerritory.levels);
+        });
+        this.$.dialogEdit.addEventListener('iron-overlay-closed', function(e) {
+          if(e.detail.confirmed === true) {
+            polymerElement.selectedTerritory.levels = JSON.parse(polymerElement.levelsAsString);
+            polymerElement.territories[polymerElement.selectedIndex] = polymerElement.selectedTerritory;
+            polymerElement.sortTerritories();
+          }
+        });
+
+        // Save
+        this.$.dialogSave.addEventListener('iron-overlay-closed', function(e) {
+          if(e.detail.confirmed === true) {
+            polymerElement.saveAll();
+          }
+        });
+
+        // Export
+        this.$.dialogExport.addEventListener('iron-overlay-opened', function() {
+          polymerElement.exportContent = JSON.stringify(polymerElement.territories, null, 2);
+        });
+      },
+
+      onResponse: function() {
+        this.sortTerritories();
+
+        // Bind the drag functions to each territory
+        var elements = Polymer.dom(this.root).querySelectorAll('.territory');
+        elements.forEach( function(t) {
+          t.addEventListener('dragstart', polymerElement.startDrag, false);
+          t.addEventListener('dragend', polymerElement.endDrag, false);
+          t.addEventListener('dragenter', polymerElement.dragEnter, false);
+          t.addEventListener('dragleave', polymerElement.dragLeave, false);
+          t.addEventListener('dragover', polymerElement.dragOver, false);
+          t.addEventListener('drop', polymerElement.drop, false);
+        });
+
+        // Bind the edit button for each territory
+        elements = Polymer.dom(this.root).querySelectorAll('.edit-button');
+        elements.forEach( function(b) {
+          b.onclick = function() {
+            polymerElement.selectedTerritory = JSON.parse(this.getAttribute('territory'));
+            polymerElement.selectedIndex = polymerElement.territories.reduce(function(prev, cur, index) {
+              if(cur.id === polymerElement.selectedTerritory.id) {
+                prev = index;
+              }
+              return prev;
+            }, -1);
+            polymerElement.$.dialogEdit.open();
+          };
+        });
+
+        // Bind the delete button for each territory
+        elements = Polymer.dom(this.root).querySelectorAll('.delete-button');
+        elements.forEach( function(b) {
+          b.onclick = function() {
+            var territoryId = this.getAttribute('territoryId');
+            var index = polymerElement.territories.reduce(function(prev, cur, index) {
+              if(cur.id === territoryId) {
+                prev = index;
+              }
+              return prev;
+            }, -1);
+            polymerElement.territories.splice(index, 1);
+            polymerElement.sortTerritories();
+          };
+        });
+      },
+
+      sortTerritories: function() {
+        polymerElement.territories.sort(function(a,b) {
+          return a.sequence - b.sequence;
+        });
+        polymerElement.$.listguy._update();
+      },
+
+      /*.territory*/ startDrag: function() {
+        this.classList.add('dragging');
+        polymerElement.draggedItem = this;
+      },
+
+      /*.territory*/ endDrag: function() {
+        this.classList.remove('dragging');
+        polymerElement.draggedItem = null;
+
+        var territories = Polymer.dom(polymerElement.root).querySelectorAll('.territory');
+        territories.forEach( function(t) {
+          t.classList.remove('dragOver');
+        });
+      },
+
+      stringifyTerritory: function(t) {
+        return JSON.stringify(t, null, 2);
+      },
+
+      newTerritory: function() {
+        var newTerritory = {};
+        newTerritory.id = 'new_territory';
+        newTerritory.name = 'New Territory';
+        newTerritory.levels = '';
+
+        // Append it to the end of the territories array
+        polymerElement.territories.push(newTerritory);
+
+        // Write its sequence number
+        newTerritory.sequence = 0;
+        var numTerritories = polymerElement.territories.length;
+        if(numTerritories > 1) {
+          newTerritory.sequence = polymerElement.territories[numTerritories-2].sequence + 1;
+        }
+        newTerritory.id += newTerritory.sequence;
+
+        // Open the edit dialog to this new territory
+        polymerElement.selectedIndex = numTerritories-1;
+        polymerElement.selectedTerritory = newTerritory;
+        polymerElement.$.dialogEdit.open();
+      },
+
+      saveAll: function() {
+
+        // First, see what the territories the server has.
+        // We'll compare that against our list and make the necessary
+        // requests to get them to match.
+        var req = new XMLHttpRequest();
+        req.onreadystatechange = function() {
+          if(req.readyState === 4) {
+            console.log('get territories req complete');
+            if(req.status === 200) {
+              var territoriesToDelete = [];
+              var territoriesToSave = [];
+
+              var serverTerritories = JSON.parse(req.responseText);
+
+              // Mark all the server-side territories for deletion, then
+              // un-mark them if we encounter them in our local list.
+              serverTerritories.forEach(function(t) {
+                territoriesToDelete.push(t.id);
+              });
+              polymerElement.territories.forEach(function(t) {
+                var index = territoriesToDelete.indexOf(t.id);
+                if(index < 0) {
+                  // If the server doesn't know about a territory yet, then
+                  // we will have to save it.
+                  territoriesToSave.push(t);
+                } else {
+                  // If the territory exists both locally and on the server,
+                  // then we don't want to delete it.
+                  territoriesToDelete.splice(index, 1);
+
+                  // Instead, see if our local copy is different from the
+                  // server's copy. If so, then overwrite the server with ours.
+                  // For now, just cheat and always-overwrite.
+                  territoriesToSave.push(t);
+                }
+              });
+              console.log('territoriesToSave:');
+              console.log(territoriesToSave);
+              console.log('territoriesToDelete:');
+              console.log(territoriesToDelete);
+
+              polymerElement.numReqsIssued = territoriesToSave.length + territoriesToDelete.length;
+              polymerElement.numReqsComplete = 0;
+              polymerElement.numReqsSuccessful = 0;
+              console.log('issuing ' + polymerElement.numReqsIssued + ' reqs');
+
+              // Request completion handler
+              var requestCompleted = function() {
+                console.log(polymerElement.numReqsComplete + ' reqs / ' + polymerElement.numReqsIssued + ' reqs complete');
+                if(polymerElement.numReqsComplete >= polymerElement.numReqsIssued) {
+                  if(polymerElement.numReqsSuccessful >= polymerElement.numReqsComplete) {
+                    polymerElement.$.saveSuccessToast.show();
+                  } else {
+                    console.log('Some territories could not be updated');
+                    polymerElement.$.saveFailureToast.show();
+                  }
+                }
+              };
+
+              // Send all the delete requests
+              territoriesToDelete.forEach(function(tId) {
+                var deleteReq = new XMLHttpRequest();
+                deleteReq.onreadystatechange = function() {
+                  if(deleteReq.readyState === 4) {
+                    if(deleteReq.status === 200) {
+                      polymerElement.numReqsSuccessful++;
+                    } else {
+                      console.log('Failed to delete territory ' + tId);
+                      console.log(deleteReq);
+                    }
+                    polymerElement.numReqsComplete++;
+                    requestCompleted();
+                  }
+                };
+
+                deleteReq.open('DELETE', app.apiBaseUrl + '/territories/' + tId);
+                deleteReq.send();
+              });
+
+              // Send all the save requests
+              territoriesToSave.forEach(function(t) {
+                var saveReq = new XMLHttpRequest();
+                saveReq.onreadystatechange = function() {
+                  if(saveReq.readyState === 4) {
+                    if(saveReq.status === 200) {
+                      polymerElement.numReqsSuccessful++;
+                    } else {
+                      console.log('Failed to save territory ' + t.id);
+                      console.log(saveReq);
+                    }
+                    polymerElement.numReqsComplete++;
+                    requestCompleted();
+                  }
+                };
+
+                saveReq.open('POST', app.apiBaseUrl + '/territories/' + t.id);
+                saveReq.send(polymerElement.stringifyTerritory(t));
+              });
+
+            } else {
+              console.log('Failed to retrieve the server\'s territories list:');
+              console.log(req);
+              polymerElement.$.saveFailureToast.show();
+            }
+          }
+        };
+
+        req.open('GET', app.apiBaseUrl + '/territories');
+        req.send();
+      },
+
+
+      /*.territory*/ dragEnter: function() {
+        //this.classList.add('dragOver');
+      },
+
+      /*.territory*/ dragLeave: function() {
+        this.classList.remove('dragOver');
+      },
+
+      /*.territory*/ dragOver: function(e) {
+        if(!this.classList.contains('dragging')) {
+          this.classList.add('dragOver');
+        }
+
+        if(e.preventDefault) {
+          e.preventDefault();
+        }
+
+        return false;
+      },
+
+      /*.territory*/ drop: function(e) {
+        if(e.stopPropagation) {
+          e.stopPropagation();
+        }
+
+        // Grab the ids of the territories that were dragged from and dropped over
+        var tIdFrom = polymerElement.draggedItem.getAttribute('territoryId');
+        var tIdTo = this.getAttribute('territoryId');
+
+        // Convert those ids into indexes into the polymerElement.territories array
+        var fromIndex = -1;
+        var toIndex = -1;
+        polymerElement.territories.forEach(function(t, index) {
+          if(t.id === tIdFrom) {
+            fromIndex = index;
+          }
+          if(t.id === tIdTo) {
+            toIndex = index;
+          }
+        });
+
+        // Abort if dropped on self. insertAfter would mess things up since it modifies toIndex.
+        if(fromIndex === toIndex) {
+          return;
+        }
+
+        // Figure out whether to insert above(before) or below(after)
+        // based on the dropped-at y-position within the territory's div
+        var droppedAtY = e.y;
+        var targetTop = this.getBoundingClientRect().top;
+        var offsetY = droppedAtY - targetTop;
+        var targetHeight = this.clientHeight;
+        var offsetPercent = offsetY / targetHeight;
+        var insertAfter = false;
+        if(offsetPercent > 0.5) {
+          insertAfter = true;
+        }
+
+        if(fromIndex >= 0 && toIndex >= 0) {
+          // Remove the territory from the array
+          var t = polymerElement.territories.splice(fromIndex, 1)[0];
+
+          // If the target element came after the removed element, then it has shifted
+          // down one position in the array
+          if(toIndex > fromIndex) {
+            toIndex--;
+          }
+
+          // Re-insert the territory either before or after the target element based on insertAfter
+          if(insertAfter) {
+            toIndex++;
+          }
+          polymerElement.territories.splice(toIndex, 0, t);
+
+          // Re-write all the sequence values to preserve this order
+          // (i.e., copy array index to territory sequence)
+          polymerElement.territories.forEach(function(t, i) {
+            t.sequence = i+1;
+          });
+
+          // And update the model
+          polymerElement.sortTerritories();
+        }
+      }
+    });
+  })();
+</script>

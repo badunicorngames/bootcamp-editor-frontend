@@ -1,0 +1,588 @@
+<!-- Styles -->
+<link rel='import' href='../../bower_components/paper-styles/paper-styles.html'>
+
+<!-- Iron -->
+<link rel='import' href='../../bower_components/iron-collapse/iron-collapse.html'>
+<link rel='import' href='../../bower_components/iron-flex-layout/iron-flex-layout.html'>
+
+<!-- Paper -->
+<link rel='import' href='../../bower_components/paper-input/paper-input.html'>
+<link rel='import' href='../../bower_components/paper-slider/paper-slider.html'>
+<link rel='import' href='../../bower_components/paper-toast/paper-toast.html'>
+
+<!-- Neon -->
+
+<!-- Bootcamp -->
+<link rel='import' href='../bootcamp-collapse-section/bootcamp-collapse-section.html'>
+<link rel='import' href='../bootcamp-level-toolbar/bootcamp-level-toolbar.html'>
+
+<dom-module id='bootcamp-level-settings'>
+
+  <style>
+    .vertical-section-container {
+      @apply(--layout-vertical);
+      @apply(--center-justified);
+    }
+
+    .vertical-section {
+      padding: 12px;
+      padding-left: 0px;
+      margin: 0 24px 24px 24px;
+
+      @apply(--shadow-elevation-2dp);
+    }
+
+    h1.paper-font-display1 {
+      padding-left: 16px;
+      font-size: 24px;
+      display: block;
+      visibility: visible;
+    }
+
+    bootcamp-level-toolbar {
+      margin-bottom: 24px;
+    }
+  </style>
+
+  <template>
+    <div class='vertical-section-container'>
+
+      <!-- header: level name -->
+      <h1 class='paper-font-display1'><span>{{name}}</span></h1>
+
+      <!-- toolbar -->
+      <bootcamp-level-toolbar id='toolbar'></bootcamp-level-toolbar>
+
+      <!-- input: level name -->
+      <div class='vertical-section'>
+        <bootcamp-collapse-section label='name'>
+          <div><paper-input label='name' value={{name}} always-float-label=true></paper-input></div>
+          <div><paper-input label='key' value={{key}} always-float-label=true></paper-input></div>
+          <div><paper-input label='parent' value={{parentKey}} always-float-label=true></paper-input></div>
+        </bootcamp-collapse-section>
+      </div>
+
+      <!-- input: level grid -->
+      <div class='vertical-section'>
+        <bootcamp-collapse-section label='grid'>
+          <div>rows</div>
+          <div><paper-slider snaps pin value={{rows}} min=1 max=5></paper-slider></div>
+          <!--<span style='max-width: 1.5em'><paper-input value={{rows}} type='number' inputmode='number' maxlength='1' auto-validate pattern='[1-5]' prevent-invalid-input allowed-pattern='[1-5]' style='max-width: 1.5em'></paper-input></span>-->
+          <div>columns</div>
+          <div><paper-slider snaps pin value={{columns}} min=1 max=5></paper-slider></div>
+        </bootcamp-collapse-section>
+      </div>
+
+      <!-- input: level timers -->
+      <div class='vertical-section'>
+        <bootcamp-collapse-section label='timers'>
+          <div>level duration (seconds)</div>
+          <div><paper-slider snaps pin value={{duration}} min=5 max=500 step=5></paper-slider></div>
+          <div>combo timeout (seconds)</div>
+          <div><paper-slider snaps pin value={{comboTimer}} min=0.1 max=5.0 step=0.1></paper-slider></div>
+        </bootcamp-collapse-section>
+      </div>
+
+      <!-- input: unit settings -->
+      <div class='vertical-section'>
+        <bootcamp-collapse-section label='units'>
+          <div>max active units</div>
+          <div><paper-slider snaps pin value={{maxActiveUnits}} min=1 max=25></paper-slider></div>
+          <div>spawns per second</div>
+          <div><paper-slider snaps pin value={{spawnsPerSecond}} min=0.1 max=5.0 step=0.1></paper-slider></div>
+          <div>unit delay multiplier</div>
+          <div><paper-slider snaps pin value={{unitDelayMultiplier}} min=0.1 max=5.0 step=0.1></paper-slider></div>
+        </bootcamp-collapse-section>
+      </div>
+
+      <!-- input: unit probabilities -->
+      <div class='vertical-section'>
+        <bootcamp-collapse-section label='spawn frequencies'>
+          <template is='dom-repeat' items='{{unitProbabilitiesArray}}'>
+            <div>{{item.name}}</div>
+            <paper-slider snaps pin value={{item.value}} min=0 max=10></paper-slider>
+          </template>
+        </bootcamp-collapse-section>
+      </div>
+
+      <!-- debug: serialized data -->
+      <div class='vertical-section'>
+        <bootcamp-collapse-section label='serialized'>
+          <div id='serialized-delta'>delta: <pre>{{_deltaJsonString}}</pre></div>
+          <div id='serialized-parent'>parent: <pre>{{_parentJsonString}}</pre></div>
+          <div id='serialized-original'>original: <pre>{{_originalJsonString}}</pre></div>
+        </bootcamp-collapse-section>
+      </div>
+
+    </div>
+
+
+    <!-- toasts -->
+    <paper-toast id='newLevelToast'>Level data reset</paper-toast>
+    <paper-toast id='levelLoadedToast'>Level <span>[[key]]</span> loaded</paper-toast>
+    <paper-toast id='levelSavedToast'>Level <span>[[key]]</span> saved</paper-toast>
+
+  </template>
+</dom-module>
+
+<script>
+  (function() {
+    Polymer({
+      is: 'bootcamp-level-settings',
+
+      properties: {
+        key: {
+          type: String,
+          value: '',
+          notify: true,
+          observer: 'updateJson'
+        },
+        parentKey: {
+          type: String,
+          value: '',
+          notify: true,
+          observer: 'updateJson'
+        },
+        name: {
+          type: String,
+          value: 'Unnamed Level',
+          notify: true,
+          observer: 'updateJson'
+        },
+        locked: {
+          // Will be removed later. Do not use.
+          type: Boolean,
+          value: false,
+        },
+        rows: {
+          type: Number,
+          value: 1,
+          notify: true,
+          observer: 'updateJson'
+        },
+        columns: {
+          type: Number,
+          value: 1,
+          notify: true,
+          observer: 'updateJson'
+        },
+        duration: {
+          type: Number,
+          value: 30,
+          notify: true,
+          observer: 'updateJson'
+        },
+        comboTimer: {
+          type: Number,
+          value: 1.5,
+          notify: true,
+          observer: 'updateJson'
+        },
+        unitDelayMultiplier: {
+          type: Number,
+          value: 1,
+          notify: true,
+          observer: 'updateJson'
+        },
+        maxActiveUnits: {
+          type: Number,
+          value: 25,
+          notify: true,
+          observer: 'updateJson'
+        },
+        spawnsPerSecond: {
+          type: Number,
+          value: 1,
+          notify: true,
+          observer: 'updateJson'
+        },
+
+        /*
+        This array+object setup is necessary for data-binding since polymer only support binding to arrays.
+        Eventually, we should be able to remove the array and just bind to the object directly. See this bug report:
+          https://github.com/Polymer/polymer/issues/1385
+        */
+        unitProbabilities: Object,
+        unitProbabilitiesArray: {
+          type: Array,
+          notify: true,
+          value: [
+            // Orcs
+            {name: 'grunt_fire', value: 0},
+            {name: 'grunt_ice', value: 0},
+            {name: 'grunt_water', value: 0},
+            {name: 'grunt_swamp', value: 0},
+            {name: 'grunt_volcano', value: 0},
+            {name: 'grunt_lightning', value: 0},
+            {name: 'grunt_earth', value: 0},
+            {name: 'grunt_iron', value: 0},
+            {name: 'grunt_snow', value: 0},
+            {name: 'grunt_undead', value: 0},
+
+              // Bombs
+            {name: 'bomb_block_exploder', value: 0},
+              
+              // Spells
+            {name: 'spell_kaboom', value: 0},
+            {name: 'spell_trap', value: 0},
+              
+              // Prisoners
+            {name: 'human', value: 0},
+              
+              // Treasures
+            {name: 'treasure_points', value: 0}
+          ]
+        },
+        
+        // --- //
+
+        // Map of property names to json keys
+        _propertyToJson: {
+          type: Object,
+          value: function() {
+            return {
+              'key': 'key',
+              'parentKey': 'parent_key',
+              'name': 'name',
+              'rows': 'rows',
+              'columns': 'columns',
+              'duration': 'duration',
+              'comboTimer': 'combo_timer',
+              'unitDelayMultiplier': 'unit_delay_multiplier',
+              'maxActiveUnits': 'max_active_units',
+              'spawnsPerSecond': 'spawns_per_second',
+              'unitProbabilities': 'spawn_frequency'
+            };
+          }
+        },
+
+
+        _deltaJson: {
+          type: Object,
+          notify: true,
+          value: ''
+        },
+        _deltaJsonString: {
+          type: String,
+          computed: 'stringifyLevel(_deltaJson)',
+          notify: true
+        },
+        _originalJson: {
+          type: Object,
+          notify: true,
+          value: ''
+        },
+        _originalJsonString: {
+          type: String,
+          computed: 'stringifyLevel(_originalJson)',
+          notify: true
+        },
+        _parentJson: {
+          type: Object,
+          notify: true,
+          value: ''
+        },
+        _parentJsonString: {
+          type: String,
+          computed: 'stringifyLevel(_parentJson)',
+          notify: true
+        }
+      },
+
+      observers: [
+        'updateUnitProbabilities(unitProbabilitiesArray.*)',
+      ],
+
+      created: function() {
+        var polymerElement = this;
+        app.addEventListener('client-routed', function() {
+          if(app.params.id === '[new]') {
+            polymerElement.newLevel();
+          } else {
+            polymerElement.loadLevel(app.params.id);
+          }
+        });
+      },
+
+      ready: function() {
+        // Default settings
+        this.newLevel();
+
+        // Toolbar events
+        var polymerElement = this;
+        this.$.toolbar.addEventListener('reload-level', function() {
+          polymerElement.loadLevel(polymerElement._originalJson.key);
+        });
+        this.$.toolbar.addEventListener('new-level', function() {
+          polymerElement.newLevel();
+        });
+        this.$.toolbar.addEventListener('open-level', function(e) {
+          polymerElement.loadLevel(e.levelId);
+        });
+        this.$.toolbar.addEventListener('save-level', function() {
+          polymerElement.saveLevel();
+        });
+      },
+
+      stringifyLevel: function(v) {
+        return JSON.stringify(v, null, 2);
+      },
+
+      /*
+          newLevel()
+
+        Resets all controls to the defaults for defining a new level.
+      */
+      newLevel: function() {
+        this._originalJson = {};
+
+        this.key = '[new]';
+        this.name = 'New Level';
+
+        // Fallback defaults in case loading the parent fails.
+        this.rows = 3;
+        this.columns = 3;
+        this.duration = 30;
+        this.comboTimer = 1.5;
+        this.unitDelayMultiplier = 1.0;
+        this.maxActiveUnits = 5;
+        this.spawnsPerSecond = 1;
+
+        this.spawnFrequency = {};
+        delete this.spawnFrequency;
+
+        var polymerElement = this;
+        // Set everything to the default level's settings.
+        // These should overwrite the "fallback defaults" above.
+        this.parentKey = 'default';
+        this.loadParent(function(parentLevel) {
+          var skipProperties = ['name', 'key', 'parentKey'];
+          for(var propertyKey in polymerElement._propertyToJson) {
+            var jsonKey = polymerElement._propertyToJson[propertyKey];
+
+            if(skipProperties.indexOf(propertyKey) !== -1) {
+              continue;
+            }
+
+            if(parentLevel[jsonKey] !== undefined) {
+              polymerElement[propertyKey] = parentLevel[jsonKey];
+            } else {
+              delete polymerElement[propertyKey];
+            }
+          }
+        },
+        function() {
+          polymerElement.$.newLevelToast.show();
+        });
+      },
+
+      /*
+          loadLevel(levelId)
+
+        Retrieves level data from the api and does stuff with it.
+      */
+      loadLevel: function(levelId) {
+        var polymerElement = this;
+
+        // Load the level data
+        var req = new XMLHttpRequest();
+        req.onreadystatechange = function() {
+          if(req.status === 200) {
+
+            var level;
+            try {
+              level = JSON.parse(req.responseText);
+            } catch(err) {
+            }
+
+            if(level !== undefined) {
+              // Apply the level data to the controls
+              polymerElement.fromJson(level);
+
+              // Save the original level data
+              polymerElement._originalJson = level;
+              polymerElement.updateJson();
+
+              // Load the parent level's data and save it for later
+              polymerElement.loadParent( null, function() { polymerElement.$.levelLoadedToast.show(); } );
+            }
+          }
+        };
+        req.open('GET', app.apiBaseUrl + '/levels/' + levelId);
+        req.send(null);
+      },
+
+      /*
+          loadParent(onSuccess, onComplete)
+
+        Loads the parent level from the api.
+        Invokes onSuccess(parentLevel) upon success.
+      */
+      loadParent: function(onSuccess, onComplete) {
+        /* jshint: eqnull */
+        this._parentJson = {};
+        var polymerElement = this;
+        if(this.parentKey !== '' && this.parentKey !== undefined) {
+          var req = new XMLHttpRequest();
+          req.onreadystatechange = function() {
+            if(req.status === 200) {
+              var parentLevel;
+              try {
+                parentLevel = JSON.parse(req.responseText);
+              } catch(err) {
+              }
+
+              if(parentLevel !== undefined) {
+                polymerElement._parentJson = parentLevel;
+                polymerElement.updateJson();
+
+                if(onSuccess) {
+                  onSuccess(parentLevel);
+                }
+              }
+            }
+
+            if(req.readyState === 4 && onComplete) {
+              onComplete();
+            }
+          };
+          req.open('GET', app.apiBaseUrl + '/levels/' + this.parentKey);
+          req.send(null);
+        } else {
+          if(onComplete) {
+            onComplete();
+          }
+        }
+      },
+
+      /*
+          saveLevel()
+
+        Saves the current level to the api.
+      */
+      saveLevel: function() {
+        var polymerElement = this;
+
+        var req = new XMLHttpRequest();
+
+        req.onreadystatechange = function() {
+          if(req.status === 200) {
+            polymerElement._originalJson = polymerElement._deltaJson;
+            polymerElement.$.levelSavedToast.show();
+          }
+        };
+
+        req.open('POST', app.apiBaseUrl + '/levels/' + this.key);
+        req.send(this._deltaJsonString);
+      },
+
+      /*
+          updateUnitProbabilities()
+
+        Copies unitProbabilitiesArray values into unitProbabilities.
+      */
+      updateUnitProbabilities: function() {
+        var tmp = {};
+        this.unitProbabilitiesArray.reduce(function(prev, current) {
+          if(current.value > 0) {
+            tmp[current.name] = current.value;
+          }
+        }, {});
+        if(Object.keys(tmp).length === 0) {
+          // These assignments look pointless, but they are not.
+          // They trigger data binding updates.
+          this.unitProbabilities = tmp;
+          this.unitProbabilities = undefined;
+          delete this.unitProbabilities;
+        } else {
+          this.unitProbabilities = tmp;
+        }
+        this.updateJson();
+      },
+
+      /*
+          fromJson()
+
+        Imports a JSON object into this level settings element.
+      */
+      fromJson: function(data) {
+        var polymerElement = this;
+        for(var propertyKey in this._propertyToJson) {
+          var jsonKey = this._propertyToJson[propertyKey];
+          if(data[jsonKey] !== undefined) {
+            this[propertyKey] = data[jsonKey];
+
+            if(propertyKey === 'unitProbabilities') {
+              // unitProbabilitiesArray needs to be updated from unitProbabilities
+              // this is backwards from the normal binding flow, so we need to do
+              // more work than usual to make it work.
+
+              // Clone unitProbabilities so that our data doesn't get destroyed
+              // part-way through the update process.
+              var newProbabilities = JSON.parse(JSON.stringify(this.unitProbabilities));
+
+              /*jshint loopfunc: true*/
+              // Update the array in place.
+              // This has the (bad?) side-effect of hiding units that aren't defined
+              // in the array defaults, but also makes sure we don't lose any that
+              // don't have values assigned.  It also preserves the ordering.
+              this.unitProbabilitiesArray.forEach(function(p, i) {
+                // We have to use polymerElement.set(path, value) instead of array[i]=
+                // because array[i]= would not trigger the data binding, so
+                // the controls wouldn't update.
+                var elementPath = 'unitProbabilitiesArray.' + i + '.value';
+                /*jshint eqnull: true*/
+                if(p.name in newProbabilities) {
+                  p.value = newProbabilities[p.name];
+                  polymerElement.set(elementPath, p.value);
+                } else {
+                  p.value = 0;
+                  polymerElement.set(elementPath, p.value);
+                }
+              });
+            }
+          } else {
+            delete this[propertyKey];
+          }
+        }
+      },
+
+      /*
+          toJson()
+
+        Returns the current level settings as a JSON object.
+      */
+      toJson: function(pretty) {
+        var level = {};
+
+        for(var propertyKey in this._propertyToJson) {
+          var jsonKey = this._propertyToJson[propertyKey];
+          if(this[propertyKey] !== this._parentJson[jsonKey]) {
+            level[jsonKey] = this[propertyKey];
+          }
+        }
+
+        this._deltaJson = level;
+
+        if(pretty) {
+          return JSON.stringify(level, null, 2);
+        }
+        return JSON.stringify(level);
+      },
+
+      /*
+          updateJson()
+
+        This observer updates the json property with the latest serialized data.
+        This is just a test/debug/whatever feature so that I can see that the data looks right.
+      */
+      updateJson: function() {
+        this.toJson(/*pretty*/ true);
+
+        this.$.toolbar.levelId = this.key;
+        this.$.toolbar.levelData = this._deltaJsonString;
+      }
+
+    });
+  })();
+</script>

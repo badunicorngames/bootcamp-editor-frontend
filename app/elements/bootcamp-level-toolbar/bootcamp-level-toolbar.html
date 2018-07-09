@@ -1,0 +1,261 @@
+<link rel='import' href='../../bower_components/iron-icon/iron-icon.html'>
+
+<link rel='import' href='../../bower_components/paper-button/paper-button.html'>
+<link rel='import' href='../../bower_components/paper-dialog/paper-dialog.html'>
+<link rel='import' href='../../bower_components/paper-spinner/paper-spinner.html'>
+
+<link rel="import" href="../../bower_components/neon-animation/neon-animations.html">
+
+<dom-module id='bootcamp-level-toolbar'>
+  <style>
+    paper-button[dialog-confirm] {
+      background-color: #3b8183;
+      color: white;
+    }
+
+    paper-button[dialog-dismiss] {
+      color: #ffa500;
+    }
+
+    #buttonNew iron-icon {
+      color: #ff4081;
+    }
+
+    #buttonOpen iron-icon {
+      color: #ffffff;
+    }
+
+    #buttonReload iron-icon {
+      color: #3b8183;
+    }
+
+    #buttonSave iron-icon {
+      color: #ffa500;
+    }
+
+    #buttonExport iron-icon {
+      color: #00ffa5;
+    }
+
+    .open-level-dialog-content {
+      margin-bottom: 24px;
+    }
+
+    .toolbar-button {
+      margin-right: 8px;
+    }
+
+    .toolbar-button iron-icon {
+      margin-right: 8px;
+    }
+
+    .toolbar-button span {
+      font-size: 9px;
+    }
+  </style>
+
+  <template>
+    <!-- toolbar -->
+    <span id='toolbar'>
+      <paper-button class='toolbar-button' id='buttonReload' raised>
+        <iron-icon icon='icons:refresh'></iron-icon><span>Reload</span>
+      </paper-button>
+      <paper-button class='toolbar-button' id='buttonNew' raised>
+        <iron-icon icon='icons:add'></iron-icon><span>New</span>
+      </paper-button>
+      <paper-button class='toolbar-button' id='buttonOpen' raised>
+        <iron-icon icon='icons:folder-open'></iron-icon><span>Open</span>
+      </paper-button>
+      <paper-button class='toolbar-button' id='buttonSave' raised>
+        <iron-icon icon='icons:save'></iron-icon><span>Save</span>
+      </paper-button>
+      <paper-button class='toolbar-button' id='buttonExport' raised>
+        <iron-icon icon='icons:cloud-download'></iron-icon><span>Export</span>
+      </paper-button>
+    </span>
+
+    <!-- dialogs -->
+    <paper-dialog id='dialogReload' entry-animation='scale-up-animation' exit-animation='fade-out-animation' with-backdrop>
+      <h2>Reload Level</h2>
+      <p>This will erase your changes. Are you sure?</p>
+      <div class='buttons'>
+        <paper-button dialog-dismiss raised autofocus>Cancel</paper-button>
+        <paper-button dialog-confirm raised>Reload</paper-button>
+      </div>
+    </paper-dialog>
+
+    <paper-dialog id='dialogNew' entry-animation='scale-up-animation' exit-animation='fade-out-animation' with-backdrop>
+      <h2>New Level</h2>
+      <p>This will erase your changes. Are you sure?</p>
+      <div class='buttons'>
+        <paper-button dialog-dismiss raised autofocus>Cancel</paper-button>
+        <paper-button dialog-confirm raised>New</paper-button>
+      </div>
+    </paper-dialog>
+
+    <paper-dialog id='dialogOpen' entry-animation='scale-up-animation' exit-animation='fade-out-animation' with-backdrop>
+      <h2>Load Level</h2>
+      <div class='open-level-dialog-content'>
+        <span>
+        <select id='openLevelDropdown'>
+          <template is='dom-repeat' items={{levels}}>
+            <option value={{item.key}}><span>{{item.name}}</span> (<span>{{item.key}}</span>)</option>
+          </template>
+        </select>
+        <paper-spinner id='openLevelSpinner'></paper-spinner>
+        </span>
+      </div>
+
+      <div class='buttons'>
+        <paper-button dialog-dismiss raised autofocus>Cancel</paper-button>
+        <paper-button dialog-confirm raised>Open</paper-button>
+      </div>
+    </paper-dialog>
+
+    <paper-dialog id='dialogSave' entry-animation="scale-up-animation" exit-animation="fade-out-animation" with-backdrop>
+      <h2>Save Level: <span>[[levelId]]</span></h2>
+      <p>This will publish your changes to the server. Are you sure you want to save this level?</p>
+      <pre>[[levelData]]</pre>
+      <div class='buttons'>
+        <paper-button dialog-dismiss raised autofocus>Cancel</paper-button>
+        <paper-button dialog-confirm raised>Save</paper-button>
+      </div>
+    </paper-dialog>
+
+    <paper-dialog id='dialogExport' entry-animation='scale-up-animation' exit-animation='fade-out-animation' with-backdrop>
+      <h2>Export All Levels</h2>
+      <paper-spinner id='exportLevelsSpinner'></paper-spinner>
+      <pre>[[exportContent]]</pre>
+      <div class='buttons'>
+        <paper-button dialog-confirm raised>Done</paper-button>
+      </div>
+    </paper-dialog>
+
+  </template>
+</dom-module>
+
+<script>
+  var reloadLevelEvent = new Event('reload-level');
+  var newLevelEvent = new Event('new-level');
+  var openLevelEvent = new Event('open-level');
+  var saveLevelEvent = new Event('save-level');
+  var exportLevelsEvent = new Event('export-levels');
+
+  (function() {
+    Polymer({
+      is: 'bootcamp-level-toolbar',
+
+      properties: {
+        levelId: String,
+        levelData: String,
+
+        openLevelId: String,
+      },
+
+      ready: function() {
+        var polymerElement = this;
+
+        this.$.buttonReload.onclick = function() { polymerElement.$.dialogReload.open(); };
+        this.$.buttonNew.onclick = function() { polymerElement.$.dialogNew.open(); };
+        this.$.buttonOpen.onclick = function() { polymerElement.$.dialogOpen.open(); };
+        this.$.buttonSave.onclick = function() { polymerElement.$.dialogSave.open(); };
+        this.$.buttonExport.onclick = function() { polymerElement.$.dialogExport.open(); };
+
+        this.$.dialogReload.addEventListener('iron-overlay-closed', function(e) {
+          if(e.detail.confirmed === true) {
+            polymerElement.dispatchEvent(reloadLevelEvent);
+          }
+        });
+        this.$.dialogNew.addEventListener('iron-overlay-closed', function(e) {
+          if(e.detail.confirmed === true) {
+            polymerElement.dispatchEvent(newLevelEvent);
+          }
+        });
+        this.$.dialogOpen.addEventListener('iron-overlay-closed', function(e) {
+          if(e.detail.confirmed === true) {
+            var target = polymerElement.$.openLevelDropdown;
+            openLevelEvent.levelId = target.options[target.selectedIndex].value;
+            polymerElement.dispatchEvent(openLevelEvent);
+          }
+        });
+        this.$.dialogSave.addEventListener('iron-overlay-closed', function(e) {
+          if(e.detail.confirmed === true) {
+            polymerElement.dispatchEvent(saveLevelEvent);
+          }
+        });
+        this.$.dialogExport.addEventListener('iron-overlay-closed', function(e) {
+          if(e.detail.confirmed === true) {
+            polymerElement.dispatchEvent(exportLevelsEvent);
+          }
+        });
+
+        this.$.dialogOpen.addEventListener('iron-overlay-opened', function() {
+          polymerElement.$.openLevelSpinner.active = true;
+          polymerElement.buildLevelsList(function() { polymerElement.$.openLevelSpinner.active = false; } );
+        });
+        this.$.openLevelDropdown.onchange = function(e) {
+          polymerElement.openLevelId = e.target.options[e.target.selectedIndex].value;
+        };
+
+        this.$.dialogExport.addEventListener('iron-overlay-opened', function() {
+          polymerElement.exportContent = '';
+          polymerElement.$.exportLevelsSpinner.active = true;
+          polymerElement.exportLevelsData(function() { polymerElement.$.exportLevelsSpinner.active = false; } );
+        });
+      },
+
+      buildLevelsList: function(onSuccess) {
+        var polymerElement = this;
+
+        var req = new XMLHttpRequest();
+        req.onreadystatechange = function() {
+          if(req.status === 200) {
+
+            var levels;
+            try {
+              levels = JSON.parse(req.responseText);
+            } catch(err) {
+            }
+
+            if(levels !== undefined) {
+              polymerElement.levels = levels;
+            }
+
+            if(onSuccess !== undefined) {
+              onSuccess();
+            }
+          }
+        };
+        req.open('GET', app.apiBaseUrl + '/levels');
+        req.send(null);
+      },
+
+      exportLevelsData: function(onSuccess) {
+        var polymerElement = this;
+
+        var req = new XMLHttpRequest();
+        req.onreadystatechange = function() {
+          if(req.status === 200) {
+
+            var levels;
+            try {
+              levels = JSON.parse(req.responseText);
+            } catch(err) {
+            }
+
+            if(levels !== undefined) {
+              polymerElement.exportContent = JSON.stringify(levels, null, 2);
+            }
+
+            if(onSuccess !== undefined) {
+              onSuccess();
+            }
+          }
+        };
+        req.open('GET', app.apiBaseUrl + '/levels');
+        req.send(null);
+      }
+
+    });
+  })();
+</script>

@@ -1,0 +1,52 @@
+<!-- Iron -->
+<link rel='import' href='../../bower_components/iron-collapse/iron-collapse.html'>
+
+<!-- Paper -->
+<link rel='import' href='../../bower_components/paper-icon-button/paper-icon-button.html'>
+
+<dom-module id='bootcamp-collapse-section'>
+  <style>
+    span {
+      font-size: 1.17em;
+      font-weight: bold;
+    }
+
+    iron-collapse {
+      padding-top: 8px;
+      padding-left: 24px;
+    }
+
+    .collapse-button {
+      color: orange;
+      position: relative;
+      /*top: -4px;*/
+      left: 4px;
+      /*@apply(--shadow-elevation-2dp);*/
+    }
+  </style>
+  <template>
+    <div width='100%' on-click='toggleCollapse'>
+      <paper-icon-button class='collapse-button' icon='arrow-drop-down'></paper-icon-button>
+      <span>{{label}}</span>
+    </div>
+    <iron-collapse id='collapseSection'>
+      <content></content>
+    </iron-collapse>
+  </template>
+</dom-module>
+<script>
+  (function() {
+    Polymer({
+      is: 'bootcamp-collapse-section',
+      properties: {
+        label: {
+          type: String,
+          value: ''
+        }
+      },
+      toggleCollapse: function() {
+        this.$.collapseSection.toggle();
+      }
+    });
+  })();
+</script>
